@@ -4,8 +4,10 @@ import time
 import argparse
 import os
 
-from face_detector import FaceDetector
+from PIL import Image
 
+from face_detector import FaceDetector
+from utils import draw_bbox, draw_progressbar
 
 def capture(output_dir, count):
   cap = cv2.VideoCapture(0)
@@ -23,14 +25,22 @@ def capture(output_dir, count):
     ret, frame = cap.read()
     if ret == True:
 
+      # Show progress bar
+      draw_progressbar(frame, (captured_counter / count))
+
+      # Detect image and write it
       faces = face_detector.detect_faces(frame)
       if len(faces) > 0:
         file_path = os.path.join(output_dir, str(captured_counter) + '.jpg')
         print('Writing capture: ' + file_path)
-        x, y, w, h = faces[0] # Assume it's the only face
+
+        face = faces[0] # Assume it's the only face
+        x, y, w, h = face
         cropped = frame[y:y+h, x:x+w]
+        cropped = cv2.resize(cropped, (224, 224))
         cv2.imwrite(file_path, cropped)
         captured_counter += 1
+        draw_bbox(frame, x, y, x+w, y+h, label="Face detected")
 
       cv2.imshow('Frame', frame)
 
@@ -59,6 +69,7 @@ if __name__ == "__main__":
   parser.add_argument("--count",
                       help="How many images to capture",
                       dest="count",
+                      type=int,
                       default=10)
   args = parser.parse_args()
 
