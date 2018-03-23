@@ -4,8 +4,10 @@ import time
 import argparse
 import os
 
+from face_detector import FaceDetector
 
-def capture(output_dir, length):
+
+def capture(output_dir, count):
   cap = cv2.VideoCapture(0)
 
   # Check if camera opened successfully
@@ -13,29 +15,29 @@ def capture(output_dir, length):
     print("Error opening video stream or file")
 
 
-  start_time = time.time()
-  frames_counter = 0
-  image_counter = 0
+  captured_counter = 0
+  face_detector = FaceDetector()
 
-  while(cap.isOpened() and (time.time() - start_time) < length):
+  while(cap.isOpened() and captured_counter < count):
     # Capture frame-by-frame
     ret, frame = cap.read()
     if ret == True:
 
-      # Display the resulting frame
-      cv2.imshow('Frame',frame)
+      faces = face_detector.detect_faces(frame)
+      if len(faces) > 0:
+        file_path = os.path.join(output_dir, str(captured_counter) + '.jpg')
+        print('Writing capture: ' + file_path)
+        x, y, w, h = faces[0] # Assume it's the only face
+        cropped = frame[y:y+h, x:x+w]
+        cv2.imwrite(file_path, cropped)
+        captured_counter += 1
 
-      # Capture image every 5 frames
-      if frames_counter % 5 == 0:
-        file_path = os.path.join(output_dir, str(image_counter) + '.jpg')
-        print('Writing file: ' + file_path)
-        cv2.imwrite(file_path, frame)
-        image_counter += 1
+      cv2.imshow('Frame', frame)
+
       # Press Q on keyboard to  exit
       if cv2.waitKey(25) & 0xFF == ord('q'):
         break
 
-      frames_counter += 1
     # Break the loop
     else:
       break
@@ -54,16 +56,16 @@ if __name__ == "__main__":
                       help="set the output dir",
                       dest="output_dir",
                       default="./data/capture/")
-  parser.add_argument("--length",
-                      help="How many seconds to capture for",
-                      dest="length",
-                      default=5)
+  parser.add_argument("--count",
+                      help="How many images to capture",
+                      dest="count",
+                      default=10)
   args = parser.parse_args()
 
   # Create output path if it doesn't exist
   if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
 
-  capture(args.output_dir, args.length)
+  capture(args.output_dir, args.count)
 
 
