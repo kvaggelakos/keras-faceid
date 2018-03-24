@@ -63,11 +63,11 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
   parser.add_argument("--output",
-                      help="set the output dir",
+                      help="Sets the output dir",
                       dest="output_dir",
                       default="./data/capture/")
   parser.add_argument("--count",
-                      help="How many images to capture",
+                      help="The number of images to capture",
                       dest="count",
                       type=int,
                       default=10)

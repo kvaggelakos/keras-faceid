@@ -94,7 +94,7 @@ if __name__ == "__main__":
   parser.add_argument("--debug",
                       help="Show debug outputs on the screen",
                       dest="debug",
-                      type=bool,
+                      action='store_true',
                       default=False)
   args = parser.parse_args()
 
