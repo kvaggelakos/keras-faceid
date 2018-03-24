@@ -1,5 +1,7 @@
 data/
 
+## Editor
+.vscode
 
 
 ## IPYTHON

@@ -37,7 +37,7 @@ def capture(output_dir, count):
         face = faces[0] # Assume it's the only face
         x, y, w, h = face
         cropped = frame[y:y+h, x:x+w]
-        cropped = cv2.resize(cropped, (224, 224))
+        cropped = cv2.resize(cropped, (96, 96))
         cv2.imwrite(file_path, cropped)
         captured_counter += 1
         draw_bbox(frame, x, y, x+w, y+h, label="Face detected")

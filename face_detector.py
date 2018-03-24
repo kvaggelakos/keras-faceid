@@ -13,5 +13,5 @@ class FaceDetector():
 
   def detect_faces(self, frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = self.face_cascade.detectMultiScale(gray, 1.3, 10)
+    faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
     return faces
