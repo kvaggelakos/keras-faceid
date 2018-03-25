@@ -1,51 +1,20 @@
 import sys
-import glob
 import numpy as np
 import cv2
 import argparse
 from PIL import Image
 
-from openface.model import create_model
 from face_detector import FaceDetector
-from utils import draw_bbox, draw_label
+from utils import draw_bbox, draw_label, read_embeddings, convert_image
+from model import build_model
 
-def build_model():
-  model = create_model()
-  model.load_weights('./openface/weights/nn4.small2.v1.h5')
-  return model
-
-def load_image(path):
-  img = cv2.imread(path, cv2.IMREAD_COLOR)
-  # OpenCV loads images with color channels in BGR order. So we need to reverse them
-  return convert_image(img)
-
-def convert_image(img):
-  img = img[...,::-1]
-  img = np.around(img/255.0, decimals=12)
-  # img = (img / 255.).astype(np.float32)
-  return img
-
-# Builds an average embedding based on all images captured
-def build_embedding(model):
-  image_paths = glob.glob('./data/capture/*.jpg')
-  embedding = np.zeros((len(image_paths), 128))
-  for i, image_path in enumerate(image_paths):
-    img = load_image(image_path)
-    embedding[i] = model.predict(np.array([img]))
-    sys.stdout.write('.')
-    sys.stdout.flush()
-
-  return np.average(embedding, axis=0)
-  # return embedding[1]
-
-def run(debug):
+def run(args):
   model = build_model()
-  embedding = build_embedding(model)
+  embedding = np.average(read_embeddings(args.emb_path), axis=0)
 
   cap = cv2.VideoCapture(0)
 
-  # Check if camera opened successfully
-  if (cap.isOpened()== False):
+  if (cap.isOpened() == False):
     print("Error opening video stream or file")
 
   face_detector = FaceDetector()
@@ -72,7 +41,7 @@ def run(debug):
           draw_bbox(frame, x, y, x+w, y+h, label="A face")
 
         # Draw distance label for debugging
-        if debug:
+        if args.debug:
           draw_label(frame, "D: " + str(round(dist, 2)), frame.shape[0] - 50, 100, (255, 0, 0), font_scale=2.5, thickness=2)
 
       cv2.imshow('Frame', frame)
@@ -96,6 +65,11 @@ if __name__ == "__main__":
                       dest="debug",
                       action='store_true',
                       default=False)
+  parser.add_argument("--emb-path",
+                      help="The path to the embedding pickle",
+                      dest="emb_path",
+                      default='./data/embedding.h5')
+
   args = parser.parse_args()
 
-  run(args.debug)
+  run(args)

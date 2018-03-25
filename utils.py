@@ -1,5 +1,10 @@
 import cv2
+import h5py
+import numpy as np
 
+###########
+# CV2 Utils
+###########
 
 def draw_bbox(frame, x1, y1, x2, y2, label="", color=(255, 0, 0)):
   cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
@@ -25,3 +30,30 @@ def draw_progressbar(frame, progress, origin=(50,50), size=(600, 30), progress_c
   # Draw progress
   x_p = int((x2-x1)*progress)
   cv2.rectangle(frame, (x1, y1), (x1 + x_p, y2), progress_color, cv2.FILLED)
+
+############
+# Image utils
+############
+
+def load_image(path):
+  img = cv2.imread(path, cv2.IMREAD_COLOR)
+  # OpenCV loads images with color channels in BGR order. So we need to reverse them
+  return convert_image(img)
+
+def convert_image(img):
+  img = img[...,::-1]
+  img = np.around(img/255.0, decimals=12)
+  # img = (img / 255.).astype(np.float32)
+  return img
+
+###############
+# Embedding utils
+###############
+
+def write_embeddings(path, data):
+  with h5py.File(path, 'w') as hf:
+    hf.create_dataset('data',  data=data)
+
+def read_embeddings(path):
+  with h5py.File(path, 'r') as hf:
+    return hf['data'][:]
