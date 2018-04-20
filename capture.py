@@ -10,12 +10,12 @@ from PIL import Image
 
 from face_detector import FaceDetector
 from utils import draw_bbox, draw_progressbar, load_image, convert_image, write_embeddings
-from model import build_model
+from model import build_model, build_classifier
 
-# Builds an average embedding based on all images captured
-def build_embedding(model, path):
+# Builds and writes embedding to file
+def build_embedding(model, named_path):
   print('Building embedding and saving to disk...')
-  image_paths = glob.glob('{}/*.jpg'.format(path))
+  image_paths = glob.glob('{}/*.jpg'.format(named_path))
   embedding = np.zeros((len(image_paths), 128))
   for i, image_path in enumerate(image_paths):
     img = load_image(image_path)
@@ -23,11 +23,9 @@ def build_embedding(model, path):
     sys.stdout.write('.')
     sys.stdout.flush()
 
-  # TODO: Avg embedding?
+  write_embeddings(os.path.join(named_path, 'embedding.h5'), embedding)
 
-  write_embeddings(os.path.join(path, 'embedding.h5'), embedding)
-
-def capture(args):
+def capture(named_path, data_path, count):
   cap = cv2.VideoCapture(0)
 
   # Check if camera opened successfully
@@ -39,18 +37,20 @@ def capture(args):
   face_detector = FaceDetector()
   model = build_model()
 
-  while(cap.isOpened() and captured_counter < args.count):
+  while(cap.isOpened() and captured_counter < count):
     # Capture frame-by-frame
     ret, frame = cap.read()
     if ret == True:
 
       # Show progress bar
-      draw_progressbar(frame, (captured_counter / args.count))
+      draw_progressbar(frame, (captured_counter / count))
 
       # Detect image and write it
       faces = face_detector.detect_faces(frame)
       if len(faces) > 0:
-        file_path = os.path.join(args.output_dir, str(captured_counter) + '.jpg')
+
+        # Per person path
+        file_path = os.path.join(named_path, str(captured_counter + 1) + '.jpg')
         print('Writing capture: ' + file_path)
 
         face = faces[0] # Assume it's the only face
@@ -76,28 +76,40 @@ def capture(args):
   cap.release()
   cv2.destroyAllWindows()
 
-  # Write the embedding file
-  build_embedding(model, args.output_dir)
+  # Build and Write the embedding file for this person
+  build_embedding(model, named_path)
+
+  # Rebuild the classifier
+  build_classifier(data_path)
+
+  print('Done!')
 
 
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
-  parser.add_argument("--output",
-                      help="Sets the output dir",
-                      dest="output_dir",
+  parser.add_argument("--data",
+                      help="Sets the data dir",
+                      dest="data_path",
                       default="./data/")
   parser.add_argument("--count",
                       help="The number of images to capture",
                       dest="count",
                       type=int,
                       default=10)
+  parser.add_argument("--name",
+                      help="The name of the person",
+                      dest="name",
+                      default="person")
   args = parser.parse_args()
 
   # Create output path if it doesn't exist
-  if not os.path.exists(args.output_dir):
-    os.makedirs(args.output_dir)
 
-  capture(args)
+  named_path = os.path.join(args.data_path, args.name)
+
+  if not os.path.exists(named_path):
+    os.makedirs(named_path)
+
+  capture(named_path, args.data_path, args.count)
 
 

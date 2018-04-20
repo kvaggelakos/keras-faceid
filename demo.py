@@ -2,15 +2,22 @@ import sys
 import numpy as np
 import cv2
 import argparse
+import glob
+import os
 from PIL import Image
+import sklearn
 
 from face_detector import FaceDetector
-from utils import draw_bbox, draw_label, read_embeddings, convert_image
+from utils import draw_bbox, draw_label, read_classifier, convert_image, read_only_embedding
 from model import build_model
 
 def run(args):
   model = build_model()
-  embedding = np.average(read_embeddings(args.emb_path), axis=0)
+
+  (clf, class_names) = read_classifier(os.path.join(args.data_path, 'classifier.pickle'))
+  # if classifier is none we only have one face
+  if clf is None:
+    verified_embedding, only_class = read_only_embedding(args.data_path)
 
   cap = cv2.VideoCapture(0)
 
@@ -31,18 +38,25 @@ def run(args):
         cropped = frame[y:y+h, x:x+w]
         cropped = cv2.resize(cropped, (96, 96))
         cropped = np.around(convert_image(cropped), decimals=12)
-        encoding = model.predict(np.array([cropped]))
-        dist = np.linalg.norm(encoding - embedding)
+        embedding = model.predict(np.array([cropped]))
 
-        # Draw the box around the face
-        if (dist < 0.7):
-          draw_bbox(frame, x, y, x+w, y+h, label="It's you!", color=(0, 255, 0))
+        if clf is None:
+          dist = np.linalg.norm(verified_embedding - embedding)
+          match = dist < 0.7
+          label = only_class if match else "Unknown"
+          if args.debug:
+            label += ' (d: {})'.format(round(dist, 2))
         else:
-          draw_bbox(frame, x, y, x+w, y+h, label="A face")
+          predictions = clf.predict_proba(embedding)
+          pred_class = np.argmax(predictions, axis=1)[0]
+          score = round(np.max(predictions)*100, 2)
+          match = score > 70
+          name = class_names[pred_class]
+          label = '{} ({}%)'.format(name, score)
 
-        # Draw distance label for debugging
-        if args.debug:
-          draw_label(frame, "D: " + str(round(dist, 2)), frame.shape[0] - 50, 100, (255, 0, 0), font_scale=2.5, thickness=2)
+        color = (0, 255, 0) if match else (0, 0, 255)
+
+        draw_bbox(frame, x, y, x+w, y+h, label=label, color=color)
 
       cv2.imshow('Frame', frame)
 
@@ -65,10 +79,10 @@ if __name__ == "__main__":
                       dest="debug",
                       action='store_true',
                       default=False)
-  parser.add_argument("--emb-path",
-                      help="The path to the embedding pickle",
-                      dest="emb_path",
-                      default='./data/embedding.h5')
+  parser.add_argument("--data-path",
+                      help="The path to where data is stored from the capture",
+                      dest="data_path",
+                      default='./data')
 
   args = parser.parse_args()
 
